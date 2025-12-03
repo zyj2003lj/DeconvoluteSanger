@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeconvoluteSanger - 单倍型解析工具套件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            padding: 50px;
+        }
+        
+        .tool-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+        
+        .tool-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border-color: #3498db;
+        }
+        
+        .tool-icon {
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .tool-icon.algorithm {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .tool-icon.sample {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .icon {
+            font-size: 80px;
+            font-weight: bold;
+        }
+        
+        .tool-content {
+            padding: 30px;
+        }
+        
+        .tool-content h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+        
+        .tool-content p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .features {
+            list-style: none;
+            margin-bottom: 25px;
+        }
+        
+        .features li {
+            padding: 8px 0;
+            color: #555;
+            position: relative;
+            padding-left: 25px;
+        }
+        
+        .features li:before {
+            content: "✓";
+            color: #27ae60;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+        
+        .btn.algorithm {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .btn.sample {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            border-top: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            .tools-grid {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>DeconvoluteSanger</h1>
+            <p>专业单倍型解析工具套件 - 用于Sanger测序数据的杂合缺失单倍型分离与验证</p>
+        </div>
+        
+        <div class="tools-grid">
+            <!-- 算法验证工具卡片 -->
+            <div class="tool-card" onclick="window.location.href='algorithm.html'">
+                <div class="tool-icon algorithm">
+                    <div class="icon">🧪</div>
+                </div>
+                <div class="tool-content">
+                    <h2>算法验证平台</h2>
+                    <p>验证和测试DeconvoluteSanger算法的正确性与鲁棒性，支持手动分析和批量模拟验证。</p>
+                    
+                    <ul class="features">
+                        <li>手动单次序列解析验证</li>
+                        <li>计算机模拟批量测试</li>
+                        <li>算法性能统计分析</li>
+                        <li>歧义案例识别与记录</li>
+                        <li>多语言界面支持</li>
+                    </ul>
+                    
+                    <button class="btn algorithm" onclick="window.location.href='algorithm.html'">进入算法验证工具</button>
+                </div>
+            </div>
+            
+            <!-- 样品解析工具卡片 -->
+            <div class="tool-card" onclick="window.location.href='sample.html'">
+                <div class="tool-icon sample">
+                    <div class="icon">🧬</div>
+                </div>
+                <div class="tool-content">
+                    <h2>生物测序样品解析</h2>
+                    <p>解析真实的Sanger测序数据，分离杂合缺失样本的单倍型，支持多种输入格式。</p>
+                    
+                    <ul class="features">
+                        <li>ABI/SCF文件上传解析</li>
+                        <li>原始峰图信号处理</li>
+                        <li>自动化单倍型分离</li>
+                        <li>结果可视化展示</li>
+                        <li>导出分析报告</li>
+                    </ul>
+                    
+                    <button class="btn sample" onclick="window.location.href='sample.html'">进入样品解析工具</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 DeconvoluteSanger Tool Suite | 
+                <a href="https://github.com/zyj2003lj/DeconvoluteSanger" target="_blank">GitHub 仓库</a> | 
+                <a href="#documentation">使用文档</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
