@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-lang-key="pageTitle">DeconvoluteSanger - 从Trace数据解析</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background-color: #f5f7fa; color: #333; line-height: 1.6; }
+        h1, h2, h3 { color: #2c3e50; }
+        .container { background-color: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+        .control-panel { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: center; }
+        button { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background-color 0.3s; }
+        button:hover { background-color: #2980b9; }
+        #drawChartBtn { background-color: #1abc9c; }
+        #drawChartBtn:hover { background-color: #16a085; }
+        .sequence-input { 
+            font-family: monospace; font-size: 16px; letter-spacing: 2px; border: 1px solid #ddd; background-color: #ecf0f1;
+            width: 100%; box-sizing: border-box; padding: 10px; outline: none; resize: vertical; white-space: pre-wrap; word-break: break-all;
+        }
+        .sequence-output {
+            font-family: monospace; font-size: 16px; letter-spacing: 1px; border: 1px solid #ccc; background-color: #f8f9fa;
+            width: 100%; box-sizing: border-box; padding: 8px; margin-top: 5px; outline: none; resize: vertical; white-space: pre-wrap; word-break: break-all;
+        }
+        .comparison-grid { display: grid; grid-template-columns: 1fr; gap: 25px; margin-top: 20px; }
+        .path-result-box { border: 1px solid #ddd; border-radius: 8px; padding: 15px; background-color: #fcfcfc; }
+        .match { color: #27ae60; font-weight: bold; }
+        .mismatch { color: #e74c3c; font-weight: bold; }
+        .input-group { display: flex; flex-direction: column; margin-bottom: 15px; }
+        textarea, input[type="number"], input[type="text"], input[type="range"] { font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        label { margin-bottom: 5px; font-weight: bold; }
+        .info-box { background-color: #e8f4fd; border-left: 4px solid #3498db; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .validation-status { padding: 8px; border-radius: 5px; text-align: center; font-weight: bold; margin-top: 10px; }
+        .validation-pass { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .validation-fail { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .file-upload-label { background-color: #9b59b6; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: inline-block; }
+        .file-upload-label:hover { background-color: #8e44ad; }
+        .flex-panel { display: flex; gap: 20px; align-items: flex-start; }
+        .help-text { font-size: 12px; color: #666; margin-top: 5px; }
+        .lang-switch { margin-bottom: 20px; text-align: right; }
+        .lang-switch button { background-color: #7f8c8d; font-size: 12px; padding: 5px 10px; }
+        .lang-switch button:hover { background-color: #6c7a7b; }
+        
+        .scroll-wrapper::-webkit-scrollbar { height: 12px; }
+        .scroll-wrapper::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 6px; }
+        .scroll-wrapper::-webkit-scrollbar-thumb { background: #888; border-radius: 6px; }
+        .scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .error-report {
+            margin-top: 15px; padding: 12px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px;
+            font-size: 13px; color: #856404; display: none;
+        }
+        .error-item { margin-bottom: 6px; border-bottom: 1px dashed #decba4; padding-bottom: 4px; line-height: 1.5; }
+        .error-item:last-child { border-bottom: none; }
+        .mutation-tag { font-weight: bold; color: #c0392b; margin-left: 5px; background: rgba(255,255,255,0.5); padding: 0 4px; border-radius: 3px; }
+        
+        .fix-btn {
+            margin-top: 10px;
+            background-color: #e67e22;
+            color: white;
+            font-size: 12px;
+            padding: 8px 12px;
+            width: 100%;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .fix-btn:hover { background-color: #d35400; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="lang-switch">
+            <button id="lang-zh">中文</button>
+            <button id="lang-en">English</button>
+        </div>
+        <h1 data-lang-key="mainTitle">DeconvoluteSanger - 从Trace数据解析</h1>
+        
+        <div id="bioedit-analysis-box">
+            <h2 data-lang-key="sectionTitleAnalysis">Trace 文件分析 (.ab1 / .txt)</h2>
+            <div class="control-panel">
+                <!-- 修改 accept 属性 -->
+                <input type="file" id="bioeditFile" accept=".ab1, .txt, text/plain" style="display: none;">
+                <label for="bioeditFile" class="file-upload-label" data-lang-key="uploadBtn">1. 上传 .ab1 或 BioEdit (.txt) 文件</label>
+            </div>
+            <div class="flex-panel">
+                <div class="input-group" style="flex: 1;">
+                    <label for="plotRangeStart" data-lang-key="plotStartLabel">2. 绘图起始位置 (行号):</label>
+                    <input type="number" id="plotRangeStart" value="1" min="1">
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <label for="plotRangeEnd" data-lang-key="plotEndLabel">2. 绘图结束位置 (行号):</label>
+                    <input type="number" id="plotRangeEnd" value="5000" min="1">
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <label for="bioeditThreshold" data-lang-key="thresholdLabel">3. 次级峰识别阈值 (%):</label>
+                    <input type="number" id="bioeditThreshold" value="25" min="5" max="95">
+                </div>
+            </div>
+            
+            <div class="input-group" style="margin-bottom: 5px;">
+                <label for="chartZoomSlider" style="display:flex; justify-content:space-between;">
+                    <span data-lang-key="zoomLabel">图表横向拉伸 (调整滑块):</span>
+                    <span id="zoomValueDisplay">2.0x</span>
+                </label>
+                <input type="range" id="chartZoomSlider" min="0.5" max="10.0" step="0.5" value="2.0">
+            </div>
+
+            <div class="control-panel">
+                 <button id="drawChartBtn" data-lang-key="drawChartBtn">4. 提取信号并绘制色谱图</button>
+            </div>
+            
+            <div class="scroll-wrapper" style="width: 100%; overflow-x: auto; overflow-y: hidden; border: 1px solid #ddd; background: white;">
+                <div id="chromatogram-container" style="position: relative; height: 400px; width: 100%;">
+                    <canvas id="chromatogramChart"></canvas>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 20px;">
+                <label for="realMixedSequenceInput" data-lang-key="mixedSignalLabel">自动提取的混合信号:</label>
+                <textarea id="realMixedSequenceInput" class="sequence-input" rows="5"></textarea>
+            </div>
+
+            <div class="flex-panel section-divider">
+                 <div class="input-group" style="flex: 1;">
+                    <label for="analysisRangeStart" data-lang-key="analysisStartLabel">5. 设定算法解析区间 (碱基编号):</label>
+                    <input type="number" id="analysisRangeStart" value="50" min="1">
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <label for="analysisRangeEnd" data-lang-key="analysisEndLabel">5. 设定算法解析区间 (碱基编号):</label>
+                    <input type="number" id="analysisRangeEnd" value="650" min="1">
+                </div>
+            </div>
+            <p class="help-text" data-lang-key="helpText">提示: 算法将分析 [起始] 到 [结束-1] 的碱基，并将 [结束] 位置的碱基仅用作最后一步的前瞻参考。</p>
+             <div class="control-panel">
+                <button id="analyzeRealBtn" data-lang-key="analyzeBtn">6. 执行算法解析</button>
+            </div>
+        </div>
+        
+        <div class="container">
+            <h2 data-lang-key="sectionTitleResults">解析结果对比</h2>
+            <div id="pathInfo" class="info-box" style="display:none;"></div>
+            <div class="comparison-grid">
+                <!-- Path A -->
+                <div class="path-result-box">
+                    <h3 data-lang-key="pathA">路径 A 推理结果</h3>
+                    <p><strong>HapA:</strong></p>
+                    <textarea id="parsedHapA_A" class="sequence-output" readonly rows="4"></textarea>
+                    <p style="margin-top: 15px;"><strong>HapB:</strong></p>
+                    <textarea id="parsedHapB_A" class="sequence-output" readonly rows="4"></textarea>
+                    <div id="validation_A" class="validation-status"></div>
+                    <div id="errorReport_A" class="error-report"></div>
+                </div>
+                <!-- Path B -->
+                <div class="path-result-box">
+                    <h3 data-lang-key="pathB">路径 B 推理结果</h3>
+                    <p><strong>HapA:</strong></p>
+                    <textarea id="parsedHapA_B" class="sequence-output" readonly rows="4"></textarea>
+                    <p style="margin-top: 15px;"><strong>HapB:</strong></p>
+                    <textarea id="parsedHapB_B" class="sequence-output" readonly rows="4"></textarea>
+                    <div id="validation_B" class="validation-status"></div>
+                    <div id="errorReport_B" class="error-report"></div>
+                </div>
+            </div>
+            <div id="resultSummary" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- I18N Setup ---
+        const translations = {
+            'zh': {
+                pageTitle: 'DeconvoluteSanger - 从Trace数据解析',
+                mainTitle: 'DeconvoluteSanger - 从Trace数据解析',
+                sectionTitleAnalysis: 'BioEdit / AB1 Trace 文件分析',
+                uploadBtn: '1. 上传 .ab1 或 BioEdit (.txt) 文件',
+                plotStartLabel: '2. 绘图起始位置 (行号):',
+                plotEndLabel: '2. 绘图结束位置 (行号):',
+                thresholdLabel: '3. 次级峰识别阈值 (%):',
+                drawChartBtn: '4. 提取信号并绘制色谱图',
+                mixedSignalLabel: '自动提取的混合信号:',
+                analysisStartLabel: '5. 设定算法解析区间 (碱基编号):',
+                analysisEndLabel: '5. 设定算法解析区间 (碱基编号):',
+                helpText: '提示: 算法将分析 [起始] 到 [结束-1] 的碱基，并将 [结束] 位置的碱基仅用作最后一步的前瞻参考。',
+                analyzeBtn: '6. 执行算法解析',
+                sectionTitleResults: '解析结果对比',
+                pathA: '路径 A 推理结果',
+                pathB: '路径 B 推理结果',
+                alertFileParsed: (fileName) => `文件 "${fileName}" 已成功解析。`,
+                alertFileParseError: (errorMsg) => `文件处理失败: ${errorMsg}`,
+                alertUploadFirst: '请先上传并成功解析一个 Trace 文件！',
+                alertChartError: (errorMsg) => `绘制图表时出错: ${errorMsg}`,
+                alertExtractFirst: '请先提取混合信号！',
+                alertInvalidRange: (maxLength) => `请输入有效的解析区间 (起始 1 到 ${maxLength-1}, 结束 2 到 ${maxLength})`,
+                alertEmptyRange: '指定范围内的混合信号为空！',
+                errorNoOrder: "未能在文件中找到碱基顺序信息 (FWO_ 或 Order)。",
+                validationPass: '验证通过',
+                validationPassFixed: '验证通过 (已修正突变)',
+                validationFail: '验证失败',
+                infoShortRange: '解析区间过短。',
+                infoNoAmbiguity: (start, end) => `算法已完成解析。区间为 **峰图位点 ${start}** 至 **${end}**。此区间内无歧义分叉点。`,
+                infoForked: (start, end, fork) => `算法已完成解析。区间为 **峰图位点 ${start}** 至 **${end}**。<br>在 **峰图位点 ${fork}** 处出现随机分叉，请核对。`,
+                conclusionUnique: '<div class="match" style="font-size: 18px; font-weight: bold;">结论: 找到唯一有效解。</div>',
+                conclusionAmbiguous: '<div class="mismatch" style="font-size: 18px; font-weight: bold;">结论: 结果存在歧义！</div>',
+                conclusionFailed: '<div class="mismatch" style="font-size: 18px; font-weight: bold;">结论: 解析失败。</div>',
+                zoomLabel: '图表横向拉伸 (调整滑块):',
+                errorReportHeader: '验证失败原因分析 (假设 HapA 正确):',
+                errorItemText: (pos, expected, actual) => `位点 ${pos}: 算法推测应为 '${expected}', 但测序峰图显示为 '${actual}'。<span class="mutation-tag">(可能突变: ${expected}→${actual})</span>`,
+                fixBtn: '接受突变修正并重新验证 (Fix & Validate)'
+            },
+            'en': {
+                pageTitle: 'DeconvoluteSanger - Parse from Trace Data',
+                mainTitle: 'DeconvoluteSanger - Parse from Trace Data',
+                sectionTitleAnalysis: 'Trace File Analysis (.ab1 / .txt)',
+                uploadBtn: '1. Upload .ab1 or BioEdit (.txt) File',
+                plotStartLabel: '2. Plot Start Position (Line No.):',
+                plotEndLabel: '2. Plot End Position (Line No.):',
+                thresholdLabel: '3. Secondary Peak Threshold (%):',
+                drawChartBtn: '4. Extract Signals & Draw Chromatogram',
+                mixedSignalLabel: 'Auto-extracted Mixed Signals:',
+                analysisStartLabel: '5. Set Algorithm Analysis Range (Base No.):',
+                analysisEndLabel: '5. Set Algorithm Analysis Range (Base No.):',
+                helpText: 'Hint: The algorithm will analyze bases from [Start] to [End-1], using the base at [End] only as a lookahead for the final step.',
+                analyzeBtn: '6. Run Deconvolution Algorithm',
+                sectionTitleResults: 'Result Comparison',
+                pathA: 'Path A Inference',
+                pathB: 'Path B Inference',
+                alertFileParsed: (fileName) => `File "${fileName}" has been parsed successfully.`,
+                alertFileParseError: (errorMsg) => `File processing failed: ${errorMsg}`,
+                alertUploadFirst: 'Please upload and parse a Trace file first!',
+                alertChartError: (errorMsg) => `Error drawing chart: ${errorMsg}`,
+                alertExtractFirst: 'Please extract mixed signals first!',
+                alertInvalidRange: (maxLength) => `Please enter a valid analysis range (Start 1 to ${maxLength-1}, End 2 to ${maxLength})`,
+                alertEmptyRange: 'Mixed signal in the specified range is empty!',
+                errorNoOrder: "Could not find base order info (FWO_ or Order) in the file.",
+                validationPass: 'Validation PASSED',
+                validationPassFixed: 'Validation PASSED (Fixed)',
+                validationFail: 'Validation FAILED',
+                infoShortRange: 'Analysis range is too short.',
+                infoNoAmbiguity: (start, end) => `Analysis complete. Range from **Peak ${start}** to **${end}**. No ambiguous fork was found in this range.`,
+                infoForked: (start, end, fork) => `Analysis complete. Range from **Peak ${start}** to **${end}**.<br>A random fork occurred at **Peak ${fork}**, please verify.`,
+                conclusionUnique: '<div class="match" style="font-size: 18px; font-weight: bold;">Conclusion: A unique valid solution was found.</div>',
+                conclusionAmbiguous: '<div class="mismatch" style="font-size: 18px; font-weight: bold;">Conclusion: The result is ambiguous!</div>',
+                conclusionFailed: '<div class="mismatch" style="font-size: 18px; font-weight: bold;">Conclusion: Deconvolution failed.</div>',
+                zoomLabel: 'Chart Horizontal Stretch (Slider):',
+                errorReportHeader: 'Validation Failure Details (Assuming HapA is correct):',
+                errorItemText: (pos, expected, actual) => `Pos ${pos}: Algorithm inferred '${expected}', but Trace shows '${actual}'. <span class="mutation-tag">(Mutation: ${expected}→${actual})</span>`,
+                fixBtn: 'Accept Mutation & Re-validate'
+            }
+        };
+
+        let currentLanguage = 'zh';
+        let bioeditTraceData = null;
+        let chromatogramChart = null;
+        let currentSlicedPointsLength = 0;
+        
+        const dom = {
+            bioeditFile: document.getElementById('bioeditFile'),
+            drawChartBtn: document.getElementById('drawChartBtn'),
+            bioeditThreshold: document.getElementById('bioeditThreshold'),
+            plotRangeStart: document.getElementById('plotRangeStart'),
+            plotRangeEnd: document.getElementById('plotRangeEnd'),
+            realMixedSequenceInput: document.getElementById('realMixedSequenceInput'),
+            analyzeRealBtn: document.getElementById('analyzeRealBtn'),
+            analysisRangeStart: document.getElementById('analysisRangeStart'),
+            analysisRangeEnd: document.getElementById('analysisRangeEnd'),
+            pathInfo: document.getElementById('pathInfo'),
+            parsedHapA_A: document.getElementById('parsedHapA_A'), 
+            parsedHapB_A: document.getElementById('parsedHapB_A'), 
+            validation_A: document.getElementById('validation_A'),
+            errorReport_A: document.getElementById('errorReport_A'),
+            parsedHapA_B: document.getElementById('parsedHapA_B'), 
+            parsedHapB_B: document.getElementById('parsedHapB_B'), 
+            validation_B: document.getElementById('validation_B'),
+            errorReport_B: document.getElementById('errorReport_B'),
+            resultSummary: document.getElementById('resultSummary'),
+            chartZoomSlider: document.getElementById('chartZoomSlider'),
+            zoomValueDisplay: document.getElementById('zoomValueDisplay'),
+            chromatogramContainer: document.getElementById('chromatogram-container')
+        };
+        
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[lang][key]) {
+                    element.innerHTML = translations[lang][key];
+                }
+            });
+            document.title = translations[lang]['pageTitle'];
+        }
+        document.getElementById('lang-zh').addEventListener('click', () => setLanguage('zh'));
+        document.getElementById('lang-en').addEventListener('click', () => setLanguage('en'));
+
+        function updateChartWidth() {
+            if (!currentSlicedPointsLength) return;
+            const zoomFactor = parseFloat(dom.chartZoomSlider.value);
+            dom.zoomValueDisplay.textContent = zoomFactor.toFixed(1) + 'x';
+            const basePixelsPerPoint = 2; 
+            const newWidth = Math.max(
+                dom.chromatogramContainer.parentElement.clientWidth, 
+                currentSlicedPointsLength * basePixelsPerPoint * (zoomFactor * 0.5)
+            );
+            dom.chromatogramContainer.style.width = newWidth + 'px';
+            if (chromatogramChart) chromatogramChart.resize();
+        }
+
+        dom.chartZoomSlider.addEventListener('input', updateChartWidth);
+
+        // --- AB1 / ABIF Parser ---
+        function parseAb1File(arrayBuffer) {
+            const view = new DataView(arrayBuffer);
+            const decoder = new TextDecoder();
+
+            // Check Header "ABIF"
+            const fileSignature = decoder.decode(arrayBuffer.slice(0, 4));
+            if (fileSignature !== 'ABIF') throw new Error("Invalid .ab1 file (missing ABIF signature)");
+
+            // Get Directory offset (Bytes 26-30)
+            // The ABIF header is 128 bytes. The DirEntry structure starts at header.DirOffset
+            // Head Structure (partial): version (2), Dir (struct: TagName(4), TagNum(4), ElemType(2), ElemSize(2), NumElem(4), DataSize(4), DataOffset(4))
+            
+            // Usually Directory Offset is at byte 26 (4 bytes, big endian)
+            const dirOffset = view.getUint32(26);
+            // Number of elements in directory is not at fixed place in header, usually we assume we loop? 
+            // Wait, standard ABIF: Header is 128 bytes. The tag directory is located at `dirOffset`.
+            // We need to know how many tags. Actually, the header doesn't explicitly say count in a simple place for all versions,
+            // but typically we read the directory until we are done.
+            // Actually, it's simpler: The location of the directory is fixed, but the *count* isn't always trivial.
+            // Let's hack: Read the Directory Tag structure.
+            
+            // Helper to read Tag
+            function getTag(offset) {
+                return {
+                    name: decoder.decode(arrayBuffer.slice(offset, offset + 4)),
+                    number: view.getUint32(offset + 4),
+                    type: view.getUint16(offset + 8),
+                    elementSize: view.getUint16(offset + 10),
+                    numElements: view.getUint32(offset + 12),
+                    dataSize: view.getUint32(offset + 16),
+                    dataOffset: view.getUint32(offset + 20)
+                };
+            }
+
+            // We need to find the tags: 
+            // DATA.9, DATA.10, DATA.11, DATA.12 (Raw or Analyzed data. Usually 9-12 is analyzed)
+            // FWO_.1 (Filter Wheel Order) - tells us which base corresponds to which DATA channel
+            // PLOC.1 or PLOC.2 (Peak locations)
+            // PBAS.1 or PBAS.2 (Base sequence)
+
+            let tags = {};
+            let offset = dirOffset;
+            
+            // Use a safe limit to avoid infinite loop if corrupted
+            for (let i = 0; i < 1000; i++) {
+                if (offset + 28 > arrayBuffer.byteLength) break;
+                const tag = getTag(offset);
+                const key = `${tag.name}.${tag.number}`;
+                tags[key] = tag;
+                offset += 28; // Tag structure size is 28 bytes
+            }
+
+            // Extract FWO_ to determine order
+            let baseOrder = 'GATC'; // Default
+            if (tags['FWO_.1']) {
+                const t = tags['FWO_.1'];
+                // FWO_ is a string (type 18) or char, typically 4 bytes at dataOffset if size <=4
+                // Data <= 4 bytes is stored in the Offset field directly
+                let fwoStr = '';
+                if (t.dataSize <= 4) {
+                    // It's packed in the offset (4 bytes)
+                    // We need to read the offset field AS data.
+                    // This is tricky with DataView getUint32, let's simply grab bytes 20-24 from the tag offset
+                    // But wait, getTag already read it as uint32.
+                    const fwoBytes = arrayBuffer.slice(tags['FWO_.1OffsetAddress'] /* Wait, we didn't save the address */);
+                }
+                
+                // Robust way:
+                if (t.dataSize <= 4) {
+                    // The data is INSIDE the 4 bytes of `dataOffset`
+                    // We need to go back to where we read the tag
+                    // Actually, let's just read from arrayBuffer at the tag's DataOffset position IF > 4, else it IS the dataOffset value
+                    // ABIF spec: If data size <= 4 bytes, the data is stored in the DataOffset field.
+                    // Since we are in JS, let's just extract that 4-byte block from the tag definition.
+                    // But we parsed it.
+                    
+                    // Re-read the 4 bytes at offset+20 of the tag location? No, we lost the tag location index.
+                    // Simplification: Just assume standard FWO or read the DataOffset as a 32bit int and convert to ascii.
+                    const val = t.dataOffset; 
+                    // Convert 32bit int to 4 chars
+                    const c1 = String.fromCharCode((val >>> 24) & 0xFF);
+                    const c2 = String.fromCharCode((val >>> 16) & 0xFF);
+                    const c3 = String.fromCharCode((val >>> 8) & 0xFF);
+                    const c4 = String.fromCharCode(val & 0xFF);
+                    fwoStr = c1 + c2 + c3 + c4;
+                } else {
+                    fwoStr = decoder.decode(arrayBuffer.slice(t.dataOffset, t.dataOffset + 4));
+                }
+                baseOrder = fwoStr;
+            }
+
+            // Extract Trace Data (DATA 9-12)
+            // DATA type is usually 4 (short, 2 bytes)
+            function readShortArray(tagKey) {
+                if (!tags[tagKey]) return [];
+                const t = tags[tagKey];
+                const result = [];
+                let dOff = t.dataOffset;
+                for (let k = 0; k < t.numElements; k++) {
+                    result.push(view.getInt16(dOff, false)); // Big Endian
+                    dOff += 2;
+                }
+                return result;
+            }
+
+            // Usually: 
+            // Channel 1 -> DATA.9
+            // Channel 2 -> DATA.10
+            // Channel 3 -> DATA.11
+            // Channel 4 -> DATA.12
+            // Map these to G, A, T, C based on FWO
+            
+            const rawSignals = [
+                readShortArray('DATA.9'),
+                readShortArray('DATA.10'),
+                readShortArray('DATA.11'),
+                readShortArray('DATA.12')
+            ];
+            
+            const signals = { G: [], A: [], T: [], C: [] };
+            for (let i = 0; i < 4; i++) {
+                const baseChar = baseOrder[i]; // e.g. 'G'
+                if (signals[baseChar]) {
+                    signals[baseChar] = rawSignals[i];
+                }
+            }
+
+            // Identify Points (Just the index)
+            // Usually all channels have same length.
+            const len = rawSignals[0].length;
+            const points = Array.from({length: len}, (_, i) => i);
+
+            // Extract Calls and Locations
+            // PBAS.1 (Sequence), PLOC.1 (Locations) - sometimes .2 if edited
+            let pbasTag = tags['PBAS.1'] || tags['PBAS.2'];
+            let plocTag = tags['PLOC.1'] || tags['PLOC.2'];
+            
+            const calls = {};
+            
+            if (pbasTag && plocTag) {
+                // PBAS is String (Type 18) usually
+                let sequence = '';
+                if (pbasTag.dataSize > 4) {
+                    sequence = decoder.decode(arrayBuffer.slice(pbasTag.dataOffset, pbasTag.dataOffset + pbasTag.numElements));
+                }
+                
+                // PLOC is Short Array (Type 4)
+                const locations = [];
+                let lOff = plocTag.dataOffset;
+                for (let k = 0; k < plocTag.numElements; k++) {
+                    locations.push(view.getInt16(lOff, false));
+                    lOff += 2;
+                }
+
+                // Map
+                for (let k = 0; k < locations.length; k++) {
+                    const loc = locations[k];
+                    const base = sequence[k];
+                    if (base && loc < len) {
+                        calls[loc] = { base: base.toUpperCase(), index: loc };
+                    }
+                }
+            }
+
+            return { points, signals, calls, baseOrder };
+        }
+        
+        // --- Existing BioEdit Parser ---
+        function parseBioEdit(text) {
+            const lines = text.split(/\r?\n/);
+            let baseOrder = '';
+            const orderMatch = text.match(/Order:\s*([GATC]{4})/i);
+            if (orderMatch && orderMatch[1]) baseOrder = orderMatch[1].toUpperCase();
+            else throw new Error(translations[currentLanguage].errorNoOrder);
+            
+            const points = [], signals = {G:[], A:[], T:[], C:[]}, calls = {};
+            let dataStarted = false;
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+                if (!dataStarted && /^\d+\s+[ATCGN.]/.test(trimmedLine) && trimmedLine.split(/\s+/).length > 5) dataStarted = true;
+                if (!dataStarted) continue;
+                const cols = trimmedLine.split(/\s+/);
+                if (cols.length < 6 || isNaN(parseInt(cols[0]))) continue;
+                const point = parseInt(cols[0]), base = cols[1].toUpperCase(), signalValues = cols.slice(2, 6).map(Number);
+                if (signalValues.some(isNaN)) continue;
+                points.push(point);
+                signals[baseOrder[0]].push(signalValues[0]);
+                signals[baseOrder[1]].push(signalValues[1]);
+                signals[baseOrder[2]].push(signalValues[2]);
+                signals[baseOrder[3]].push(signalValues[3]);
+                if (/[ATCG]/.test(base)) calls[point] = { base, index: points.length - 1 };
+            }
+            return { points, signals, calls, baseOrder };
+        }
+
+        dom.bioeditFile.addEventListener('change', (event) => {
+            const file = event.target.files[0]; if (!file) return;
+            
+            const fileName = file.name.toLowerCase();
+            
+            if (fileName.endsWith('.ab1')) {
+                // Handle AB1 Binary
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        bioeditTraceData = parseAb1File(e.target.result); // ArrayBuffer
+                        alert(translations[currentLanguage].alertFileParsed(file.name));
+                        if (chromatogramChart) { chromatogramChart.destroy(); chromatogramChart = null; }
+                        dom.plotRangeEnd.value = bioeditTraceData.points.length;
+                    } catch(error) {
+                        bioeditTraceData = null;
+                        console.error(error);
+                        alert(translations[currentLanguage].alertFileParseError(error.message));
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // Handle Text (BioEdit)
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        bioeditTraceData = parseBioEdit(e.target.result); // String
+                        alert(translations[currentLanguage].alertFileParsed(file.name));
+                        if (chromatogramChart) { chromatogramChart.destroy(); chromatogramChart = null; }
+                        dom.plotRangeEnd.value = bioeditTraceData.points.length;
+                    } catch(error) {
+                        bioeditTraceData = null;
+                        alert(translations[currentLanguage].alertFileParseError(error.message));
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        dom.drawChartBtn.addEventListener('click', () => {
+            if (!bioeditTraceData) { alert(translations[currentLanguage].alertUploadFirst); return; }
+            try {
+                const startPoint = parseInt(dom.plotRangeStart.value);
+                const endPoint = parseInt(dom.plotRangeEnd.value);
+                const threshold = parseInt(dom.bioeditThreshold.value) / 100;
+                const startIdx = bioeditTraceData.points.findIndex(p => p >= startPoint);
+                let endIdx = bioeditTraceData.points.findIndex(p => p >= endPoint);
+                if (endIdx === -1) endIdx = bioeditTraceData.points.length;
+
+                const slicedPoints = bioeditTraceData.points.slice(startIdx, endIdx);
+                currentSlicedPointsLength = slicedPoints.length;
+                updateChartWidth();
+
+                const datasets = [
+                    { label: 'G', data: bioeditTraceData.signals.G.slice(startIdx, endIdx), borderColor: 'black', pointRadius: 0, borderWidth: 1.5 },
+                    { label: 'A', data: bioeditTraceData.signals.A.slice(startIdx, endIdx), borderColor: 'green', pointRadius: 0, borderWidth: 1.5 },
+                    { label: 'T', data: bioeditTraceData.signals.T.slice(startIdx, endIdx), borderColor: 'red',   pointRadius: 0, borderWidth: 1.5 },
+                    { label: 'C', data: bioeditTraceData.signals.C.slice(startIdx, endIdx), borderColor: 'blue',  pointRadius: 0, borderWidth: 1.5 }
+                ];
+
+                const mixedCalls = [];
+                const annotations = {};
+                let callCounter = 0;
+                for (const point in bioeditTraceData.calls) {
+                    const callInfo = bioeditTraceData.calls[point];
+                    const i = callInfo.index;
+                    
+                    // Only process if inside range
+                    if (i >= startIdx && i < endIdx) {
+                        callCounter++;
+                        const primaryBase = callInfo.base;
+                        
+                        // Safety check for bounds
+                        const primaryHeight = bioeditTraceData.signals[primaryBase] && bioeditTraceData.signals[primaryBase][i] !== undefined 
+                            ? bioeditTraceData.signals[primaryBase][i] 
+                            : 0;
+
+                        let call = [primaryBase];
+                        for(const base of "ATCG") {
+                            if (base === primaryBase) continue;
+                            const secondaryHeight = bioeditTraceData.signals[base][i];
+                            if (primaryHeight > 0 && secondaryHeight >= primaryHeight * threshold) call.push(base);
+                        }
+                        const callText = [...new Set(call)].sort().join('/');
+                        mixedCalls.push(callText);
+                        
+                        annotations[i - startIdx] = {
+                            type: 'label', xValue: i - startIdx, yValue: Math.max(...datasets.map(ds => ds.data[i - startIdx])) + 50,
+                            content: [`${callCounter}`, `${callText}`], font: { size: 10 },
+                            backgroundColor: 'rgba(245, 245, 245, 0.75)', yAdjust: -15, padding: 2,
+                        };
+                    }
+                }
+                dom.realMixedSequenceInput.value = mixedCalls.join(' ');
+                dom.analysisRangeEnd.value = mixedCalls.length;
+                
+                if (chromatogramChart) { chromatogramChart.destroy(); }
+                const ctx = document.getElementById('chromatogramChart').getContext('2d');
+                chromatogramChart = new Chart(ctx, {
+                    type: 'line', data: { labels: slicedPoints, datasets: datasets },
+                    options: {
+                        animation: false, responsive: true, maintainAspectRatio: false,
+                        scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 50 } }, y: { beginAtZero: true } },
+                        plugins: {
+                            zoom: { pan: { enabled: true, mode: 'x', modifierKey: 'ctrl' }, zoom: { wheel: { enabled: true }, mode: 'x' } },
+                            legend: { position: 'bottom' },
+                            annotation: { annotations: annotations }
+                        }
+                    }
+                });
+            } catch (error) { alert(translations[currentLanguage].alertChartError(error.message)); console.error(error); }
+        });
+        
+        dom.analyzeRealBtn.addEventListener('click', () => {
+            const fullMixedSeqText = dom.realMixedSequenceInput.value.trim();
+            if (!fullMixedSeqText) { alert(translations[currentLanguage].alertExtractFirst); return; }
+
+            const fullMixedSeq = fullMixedSeqText.split(/\s+/);
+            const start = parseInt(dom.analysisRangeStart.value);
+            const end = parseInt(dom.analysisRangeEnd.value);
+
+            if(isNaN(start) || isNaN(end) || start < 1 || end > fullMixedSeq.length || start >= end) {
+                alert(translations[currentLanguage].alertInvalidRange(fullMixedSeq.length));
+                return;
+            }
+            
+            const sequenceToProcess = fullMixedSeq.slice(start - 1, end).join(' ');
+            const userMixedSequence = parseEditableMixedSequence(sequenceToProcess);
+            
+            if (!userMixedSequence || userMixedSequence.length === 0) { alert(translations[currentLanguage].alertEmptyRange); return; }
+            displayAnalysisResults(userMixedSequence, start);
+        });
+        
+        function parseEditableMixedSequence(text) { const parts = text.trim().split(/\s+/).filter(p => p); return parts.map(part => part.toUpperCase().split('/')); }
+        
+        function deconvoluteWithSingleFork(mixedSeq, absoluteStart) {
+            const analysisLength = mixedSeq.length - 1;
+            const absoluteEnd = absoluteStart + analysisLength - 1;
+
+            if (analysisLength < 1) { 
+                return { winner: 'None', pathA: {HapA:[], HapB:[]}, pathB:{HapA:[], HapB:[]}, isAValid: false, isBValid: false, info: translations[currentLanguage].infoShortRange }; 
+            }
+
+            let commonPath = { HapA: [], HapB: [] }; 
+            let forkIndex = -1; 
+            for (let i = 0; i < analysisLength; i++) { 
+                if ([...new Set(mixedSeq[i])].length === 1) { 
+                    commonPath.HapA.push(mixedSeq[i][0]); 
+                    commonPath.HapB.push(mixedSeq[i][0]); 
+                } else { 
+                    forkIndex = i; 
+                    break; 
+                } 
+            }
+            
+            if (forkIndex === -1) {
+                const path = _completePathGreedily_consistent(mixedSeq, commonPath, analysisLength);
+                const isAValid = validatePath(path.HapA.join(''), path.HapB.join(''));
+                return { winner: isAValid ? 'A' : 'None', pathA: path, pathB: JSON.parse(JSON.stringify(path)), isAValid, isBValid: isAValid, info: translations[currentLanguage].infoNoAmbiguity(absoluteStart, absoluteEnd) };
+            }
+
+            let forkBases = [...new Set(mixedSeq[forkIndex])]; if (Math.random() < 0.5) { forkBases = [forkBases[1], forkBases[0]]; }
+            const pathA = JSON.parse(JSON.stringify(commonPath)); pathA.HapA.push(forkBases[0]); pathA.HapB.push(forkBases[1]);
+            const pathB = JSON.parse(JSON.stringify(commonPath)); pathB.HapA.push(forkBases[1]); pathB.HapB.push(forkBases[0]);
+            
+            const completedPathA = _completePathGreedily_consistent(mixedSeq, pathA, forkIndex + 1);
+            const completedPathB = _completePathGreedily_consistent(mixedSeq, pathB, forkIndex + 1);
+            
+            const isAValid = validatePath(completedPathA.HapA.join(''), completedPathA.HapB.join(''));
+            const isBValid = validatePath(completedPathB.HapA.join(''), completedPathB.HapB.join(''));
+            
+            let winner = 'None';
+            if (isAValid && !isBValid) winner = 'A'; else if (!isAValid && isBValid) winner = 'B'; else if (isAValid && isBValid) winner = 'Both';
+            
+            const absoluteForkPosition = absoluteStart + forkIndex;
+            return { winner, pathA: completedPathA, pathB: completedPathB, isAValid, isBValid, info: translations[currentLanguage].infoForked(absoluteStart, absoluteEnd, absoluteForkPosition) };
+        }
+
+        const _decideAllocation = (current_base, prev_hap_b_base, next_bases) => { const l = next_bases && next_bases.includes(current_base); if (!l) return 'HapA'; if (prev_hap_b_base && prev_hap_b_base === current_base) return 'HapA'; return 'HapB'; };
+        
+        function _completePathGreedily_consistent(mixedSeq, currentPath, startIndex) {
+             const analysisLength = mixedSeq.length - 1;
+             for (let i = startIndex; i < analysisLength; i++) {
+                const u = [...new Set(mixedSeq[i])];
+                if (u.length === 1) {
+                    currentPath.HapA.push(u[0]); currentPath.HapB.push(u[0]);
+                } else {
+                    const [b1, b2] = u, p = (i > 0) ? currentPath.HapB[i - 1] : null, n = (i < mixedSeq.length - 1) ? mixedSeq[i + 1] : null;
+                    const a1 = _decideAllocation(b1, p, n), a2 = _decideAllocation(b2, p, n);
+                    if (a1 !== a2) { if (a1 === 'HapA') { currentPath.HapA.push(b1); currentPath.HapB.push(b2); } else { currentPath.HapA.push(b2); currentPath.HapB.push(b1); } }
+                    else { currentPath.HapA.push(b1); currentPath.HapB.push(b2); }
+                }
+            }
+            return currentPath;
+        }
+        
+        function validatePath(hA, hB) {
+            if (hA.length === 0 || hB.length === 0 || hA.length !== hB.length) return false;
+            const hapBToCompare = hB.slice(0, -1);
+            if (hA.length !== hapBToCompare.length + 1) return false;
+            for (let i = 0; i < hA.length; i++) {
+                const simulatedHapB = hA.substring(0, i) + hA.substring(i + 1);
+                if (simulatedHapB === hapBToCompare) return true;
+            }
+            return false;
+        }
+
+        function identifyErrorSites(hAArr, hBArr, absoluteStart) {
+            const hA = hAArr.join('');
+            const hB = hBArr.slice(0, -1).join('');
+            
+            if (hA.length !== hB.length + 1) return { errors: [], bestDeletionIndex: -1 };
+
+            let bestDeletionIndex = -1;
+            let minErrors = Infinity;
+            let bestErrors = [];
+
+            for (let i = 0; i < hA.length; i++) {
+                const candidateHapB = hA.substring(0, i) + hA.substring(i + 1);
+                let errorCount = 0;
+                let currentErrors = [];
+
+                for (let j = 0; j < candidateHapB.length; j++) {
+                    if (candidateHapB[j] !== hB[j]) {
+                        errorCount++;
+                        currentErrors.push({
+                            relativePos: j,
+                            pos: absoluteStart + j,
+                            expected: candidateHapB[j],
+                            actual: hB[j]
+                        });
+                    }
+                }
+
+                if (errorCount < minErrors) {
+                    minErrors = errorCount;
+                    bestDeletionIndex = i;
+                    bestErrors = currentErrors;
+                }
+            }
+            return { errors: bestErrors, bestDeletionIndex: bestDeletionIndex };
+        }
+
+        function applyFixAndRevalidate(pathSuffix, bestDeletionIndex, errors, hapA_Array) {
+            let newHapA = [...hapA_Array];
+            
+            errors.forEach(err => {
+                let targetIndexHapA = err.relativePos;
+                if (err.relativePos >= bestDeletionIndex) {
+                    targetIndexHapA += 1;
+                }
+                if (targetIndexHapA < newHapA.length) {
+                    newHapA[targetIndexHapA] = err.actual;
+                }
+            });
+
+            const hapAInput = document.getElementById(`parsedHapA_${pathSuffix}`);
+            hapAInput.value = newHapA.join('');
+
+            const statusDiv = document.getElementById(`validation_${pathSuffix}`);
+            statusDiv.innerHTML = translations[currentLanguage].validationPassFixed;
+            statusDiv.className = 'validation-status validation-pass';
+
+            document.getElementById(`errorReport_${pathSuffix}`).style.display = 'none';
+        }
+
+        function renderErrorReport(container, errorData, pathSuffix, hapA_Array) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            const errors = errorData.errors;
+            if (errors.length === 0) return;
+
+            container.style.display = 'block';
+            const header = document.createElement('strong');
+            header.textContent = translations[currentLanguage].errorReportHeader;
+            container.appendChild(header);
+
+            errors.forEach(err => {
+                const div = document.createElement('div');
+                div.className = 'error-item';
+                div.innerHTML = translations[currentLanguage].errorItemText(err.pos, err.expected, err.actual);
+                container.appendChild(div);
+            });
+
+            const fixBtn = document.createElement('button');
+            fixBtn.className = 'fix-btn';
+            fixBtn.textContent = translations[currentLanguage].fixBtn;
+            fixBtn.onclick = () => applyFixAndRevalidate(pathSuffix, errorData.bestDeletionIndex, errors, hapA_Array);
+            container.appendChild(fixBtn);
+        }
+        
+        function displayAnalysisResults(mixedSeq, absoluteStart) { 
+            const result = deconvoluteWithSingleFork(mixedSeq, absoluteStart); 
+            const lang = translations[currentLanguage];
+            dom.pathInfo.style.display = 'block'; 
+            dom.pathInfo.innerHTML = result.info; 
+            
+            // Path A
+            dom.parsedHapA_A.value = result.pathA.HapA.join(''); 
+            dom.parsedHapB_A.value = result.pathA.HapB.join(''); 
+            dom.validation_A.innerHTML = result.isAValid ? lang.validationPass : lang.validationFail; 
+            dom.validation_A.className = `validation-status ${result.isAValid ? 'validation-pass' : 'validation-fail'}`; 
+            
+            if (!result.isAValid) {
+                const errorData = identifyErrorSites(result.pathA.HapA, result.pathA.HapB, absoluteStart);
+                renderErrorReport(dom.errorReport_A, errorData, 'A', result.pathA.HapA);
+            } else {
+                dom.errorReport_A.style.display = 'none';
+            }
+
+            // Path B
+            dom.parsedHapA_B.value = result.pathB.HapA.join(''); 
+            dom.parsedHapB_B.value = result.pathB.HapB.join(''); 
+            dom.validation_B.innerHTML = result.isBValid ? lang.validationPass : lang.validationFail;
+            dom.validation_B.className = `validation-status ${result.isBValid ? 'validation-pass' : 'validation-fail'}`; 
+             
+             if (!result.isBValid) {
+                const errorData = identifyErrorSites(result.pathB.HapA, result.pathB.HapB, absoluteStart);
+                renderErrorReport(dom.errorReport_B, errorData, 'B', result.pathB.HapA);
+            } else {
+                dom.errorReport_B.style.display = 'none';
+            }
+            
+            let summaryHTML; 
+            switch(result.winner) { 
+                case 'A': case 'B': summaryHTML = lang.conclusionUnique; break; 
+                case 'Both': summaryHTML = lang.conclusionAmbiguous; break; 
+                default: summaryHTML = lang.conclusionFailed; break; 
+            } 
+            dom.resultSummary.innerHTML = summaryHTML; 
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            setLanguage(currentLanguage);
+        });
+    </script>
+</body>
+</html>
