@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeconvoluteSanger - 单倍型解析工具套件</title>
+    <title>DeconvoluteSanger - Haplotype Resolution Tool Suite</title>
     <style>
         * {
             margin: 0;
@@ -28,6 +28,37 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             overflow: hidden;
+        }
+        
+        /* 语言切换按钮 */
+        .language-switcher {
+            display: flex;
+            justify-content: flex-end;
+            padding: 15px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .lang-btn {
+            background: #f1f1f1;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 6px 15px;
+            margin-left: 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .lang-btn:hover {
+            background: #e9ecef;
+        }
+        
+        .lang-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
         }
         
         .header {
@@ -194,11 +225,19 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>DeconvoluteSanger</h1>
-            <p>专业单倍型解析工具套件 - 用于Sanger测序数据的杂合缺失单倍型分离与验证</p>
+        <!-- 语言切换 -->
+        <div class="language-switcher">
+            <button id="langEn" class="lang-btn active">English</button>
+            <button id="langZh" class="lang-btn">中文</button>
         </div>
         
+        <!-- 主标题区域 -->
+        <div class="header">
+            <h1 data-i18n="title">DeconvoluteSanger</h1>
+            <p data-i18n="subtitle">Professional Haplotype Resolution Tool Suite for Sanger Sequencing Data</p>
+        </div>
+        
+        <!-- 工具卡片网格 -->
         <div class="tools-grid">
             <!-- 算法验证工具卡片 -->
             <div class="tool-card" onclick="window.location.href='algorithm.html'">
@@ -206,18 +245,20 @@
                     <div class="icon">🧪</div>
                 </div>
                 <div class="tool-content">
-                    <h2>算法验证平台</h2>
-                    <p>验证和测试DeconvoluteSanger算法的正确性与鲁棒性，支持手动分析和批量模拟验证。</p>
+                    <h2 data-i18n="algorithmTitle">Algorithm Validation Platform</h2>
+                    <p data-i18n="algorithmDesc">Validate and test the correctness and robustness of DeconvoluteSanger algorithm with manual analysis and batch simulations.</p>
                     
                     <ul class="features">
-                        <li>手动单次序列解析验证</li>
-                        <li>计算机模拟批量测试</li>
-                        <li>算法性能统计分析</li>
-                        <li>歧义案例识别与记录</li>
-                        <li>多语言界面支持</li>
+                        <li data-i18n="algorithmFeature1">Manual single sequence analysis</li>
+                        <li data-i18n="algorithmFeature2">Computer simulation batch testing</li>
+                        <li data-i18n="algorithmFeature3">Algorithm performance analysis</li>
+                        <li data-i18n="algorithmFeature4">Unique solution validation</li>
+                        <li data-i18n="algorithmFeature5">Real-time result visualization</li>
                     </ul>
                     
-                    <button class="btn algorithm" onclick="window.location.href='algorithm.html'">进入算法验证工具</button>
+                    <button class="btn algorithm" onclick="window.location.href='algorithm.html'">
+                        <span data-i18n="algorithmButton">Enter Algorithm Tool</span>
+                    </button>
                 </div>
             </div>
             
@@ -227,28 +268,129 @@
                     <div class="icon">🧬</div>
                 </div>
                 <div class="tool-content">
-                    <h2>生物测序样品解析</h2>
-                    <p>解析真实的Sanger测序数据，分离杂合缺失样本的单倍型，支持多种输入格式。</p>
+                    <h2 data-i18n="sampleTitle">Biological Sample Analysis</h2>
+                    <p data-i18n="sampleDesc">Analyze real Sanger sequencing data to separate haplotypes from heterozygous deletion samples.</p>
                     
                     <ul class="features">
-                        <li>ABI/SCF文件上传解析</li>
-                        <li>原始峰图信号处理</li>
-                        <li>自动化单倍型分离</li>
-                        <li>结果可视化展示</li>
-                        <li>导出分析报告</li>
+                        <li data-i18n="sampleFeature1">ABI file format support</li>
+                        <li data-i18n="sampleFeature2">Raw chromatogram processing</li>
+                        <li data-i18n="sampleFeature3">Automated haplotype separation</li>
+                        <li data-i18n="sampleFeature4">Result visualization</li>
+                        <li data-i18n="sampleFeature5">Analysis summary generation</li>
                     </ul>
                     
-                    <button class="btn sample" onclick="window.location.href='sample.html'">进入样品解析工具</button>
+                    <button class="btn sample" onclick="window.location.href='sample.html'">
+                        <span data-i18n="sampleButton">Enter Sample Tool</span>
+                    </button>
                 </div>
             </div>
         </div>
         
+        <!-- 页脚 -->
         <div class="footer">
-            <p>© 2024 DeconvoluteSanger Tool Suite | 
-                <a href="https://github.com/zyj2003lj/DeconvoluteSanger" target="_blank">GitHub 仓库</a> | 
-                <a href="#documentation">使用文档</a>
+            <p data-i18n="footerText">
+                © 2024 DeconvoluteSanger Tool Suite | 
+                <a href="https://github.com/zyj2003lj/DeconvoluteSanger" target="_blank">GitHub Repository</a>
             </p>
         </div>
     </div>
+
+    <script>
+        // 语言资源对象
+        const languageResources = {
+            'en': {
+                'title': 'DeconvoluteSanger',
+                'subtitle': 'Professional Haplotype Resolution Tool Suite for Sanger Sequencing Data',
+                'algorithmTitle': 'Algorithm Validation Platform',
+                'algorithmDesc': 'Validate and test the correctness and robustness of DeconvoluteSanger algorithm with manual analysis and batch simulations.',
+                'algorithmFeature1': 'Manual single sequence analysis',
+                'algorithmFeature2': 'Computer simulation batch testing',
+                'algorithmFeature3': 'Algorithm performance analysis',
+                'algorithmFeature4': 'Unique solution validation',
+                'algorithmFeature5': 'Real-time result visualization',
+                'algorithmButton': 'Enter Algorithm Tool',
+                'sampleTitle': 'Biological Sample Analysis',
+                'sampleDesc': 'Analyze real Sanger sequencing data to separate haplotypes from heterozygous deletion samples.',
+                'sampleFeature1': 'ABI file format support',
+                'sampleFeature2': 'Raw chromatogram processing',
+                'sampleFeature3': 'Automated haplotype separation',
+                'sampleFeature4': 'Result visualization',
+                'sampleFeature5': 'Analysis summary generation',
+                'sampleButton': 'Enter Sample Tool',
+                'footerText': '© 2024 DeconvoluteSanger Tool Suite | '
+            },
+            'zh-CN': {
+                'title': 'DeconvoluteSanger',
+                'subtitle': '专业单倍型解析工具套件 - 用于Sanger测序数据的杂合缺失单倍型分离',
+                'algorithmTitle': '算法验证平台',
+                'algorithmDesc': '验证和测试DeconvoluteSanger算法的正确性与鲁棒性，支持手动分析和批量模拟验证。',
+                'algorithmFeature1': '手动单次序列解析验证',
+                'algorithmFeature2': '计算机模拟批量测试',
+                'algorithmFeature3': '算法性能统计分析',
+                'algorithmFeature4': '唯一解有效性验证',
+                'algorithmFeature5': '实时结果可视化',
+                'algorithmButton': '进入算法验证工具',
+                'sampleTitle': '生物样品测序解析',
+                'sampleDesc': '解析真实的Sanger测序数据，分离杂合缺失样本的单倍型。',
+                'sampleFeature1': 'ABI文件格式支持',
+                'sampleFeature2': '原始峰图信号处理',
+                'sampleFeature3': '自动化单倍型分离',
+                'sampleFeature4': '结果可视化展示',
+                'sampleFeature5': '分析总结报告生成',
+                'sampleButton': '进入样品解析工具',
+                'footerText': '© 2024 DeconvoluteSanger 工具套件 | '
+            }
+        };
+
+        // 当前语言（默认英文）
+        let currentLanguage = 'en';
+
+        // 切换语言函数
+        function switchLanguage(lang) {
+            currentLanguage = lang;
+            
+            // 更新所有带有data-i18n属性的元素
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (languageResources[lang][key]) {
+                    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                        element.placeholder = languageResources[lang][key];
+                    } else {
+                        element.textContent = languageResources[lang][key];
+                    }
+                }
+            });
+            
+            // 更新按钮激活状态
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`lang${lang === 'en' ? 'En' : 'Zh'}`).classList.add('active');
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化为英文
+            switchLanguage('en');
+            
+            // 添加语言切换事件监听
+            document.getElementById('langEn').addEventListener('click', () => switchLanguage('en'));
+            document.getElementById('langZh').addEventListener('click', () => switchLanguage('zh-CN'));
+            
+            // 添加卡片点击事件
+            document.querySelectorAll('.tool-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    // 防止按钮点击触发两次
+                    if (!e.target.classList.contains('btn')) {
+                        const link = this.querySelector('.btn').getAttribute('onclick');
+                        if (link) {
+                            const url = link.match(/window\.location\.href='(.*?)'/)[1];
+                            window.location.href = url;
+                        }
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
